@@ -2,13 +2,16 @@
 	<html>
 		<head><title> 1.3k pong </title></head>
 <body onkeydown="keys[event.key] = true;" onkeyup="keys[event.key] = false">
-	<canvas id="main" width="1000" height="600"></canvas>
-	<canvas id="overlay" width="1000" height="600" style="position:absolute"></canvas>
+	<div style="position:relative">
+		<canvas id="main" width="800" height="600" style="position:absolute" ></canvas>
+		<canvas id="overlay" width="800" height="600" style="position:absolute"></canvas>
+	</div>
 	<script type="text/javascript"> 
 var ctx = document.getElementById("main").getContext("2d");
 var ctx2 = document.getElementById("overlay").getContext("2d");
-var w = 1000, h = 600;
+var w = 800, h = 600;
 
+ctx2.strokeRect(0, 0, 20, 20);
 var keys = {};
 players = [
 	{x: 30, y: 30, vx: 0, vy: 0, canJump: true, left: 'a', right: 'd', jump:'w', hit: ' '},
@@ -27,14 +30,14 @@ function draw(){
 function handleInput(){
 	for(var i = 0; i < 2; i++){
 		if(keys[players[i].left]){
-			 players[i].vx -= 0.1;
+			if(players[i].vx > -5) players[i].vx -= 0.3;
 		} else if(keys[players[i].right]){
-			 players[i].vx += 0.1;
+			if(players[i].vx < 5) players[i].vx += 0.3;
 		} else players[i].vx /= 1.1;
 		if(keys[players[i].jump] && players[i].canJump){
 			players[i].canJump = false;
-			players[i].vy += 5;
-		} else players[i].vy -= 0.1;
+			players[i].vy += 10;
+		} else players[i].vy -= 0.3;
 	}
 }
 function doLogic(){
