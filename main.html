@@ -24,7 +24,9 @@ function clip(x, min, max){
 }
 function draw(){
 	ctx.clearRect(0, 0, w, h);
+	ctx.fillStyle = "blue";
 	ctx.fillRect(players[0].x-15, h-players[0].y-15, 30, 30);
+	ctx.fillStyle = "red";
 	ctx.fillRect(players[1].x-15, h-players[1].y-15, 30, 30);
 }
 function handleInput(){
