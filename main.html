@@ -14,13 +14,26 @@ var w = 800, h = 600;
 ctx2.strokeRect(0, 0, 20, 20);
 var keys = {};
 players = [
-	{x: 30, y: 30, vx: 0, vy: 0, canJump: true, left: 'a', right: 'd', jump:'w', hit: ' '},
-	{x: 60, y: 30, vx: 0, vy: 0, canJump: true, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
+	{x: 30, y: 100, vx: 0, vy: 0, canJump: true, left: 'a', right: 'd', jump:'w', hit: ' '},
+	{x: 60, y: 100, vx: 0, vy: 0, canJump: true, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
 ]
+var platforms = [{x1: 30, y1: 30, x2: 750, y2: 40},
+				 {x1: 400, y1: 150, x2: 470, y2: 160}]
 function clip(x, min, max){
 	if(x < min) x = min;
 	else if(x > max) x = max;
 	return x;
+}
+function collide(r1, r2){
+	if(r1.x1 < r2.x2 && r1.y1 < r2.y2 && r1.x2 > r2.x1 && r1.y2 > r2.y1){
+		return true;
+		console.log("collided");
+	}
+	console.log("didn't collide")
+	return false;
+}
+function pTor(p){
+	return {x1: p.x - 15, x2: p.x + 15, y1: p.y - 15, y2: p.y + 15};
 }
 function draw(){
 	ctx.clearRect(0, 0, w, h);
@@ -28,6 +41,11 @@ function draw(){
 	ctx.fillRect(players[0].x-15, h-players[0].y-15, 30, 30);
 	ctx.fillStyle = "red";
 	ctx.fillRect(players[1].x-15, h-players[1].y-15, 30, 30);
+	ctx.fillStyle = "black";
+	for(var i = platforms.length - 1; i >= 0; i--){
+		ctx.fillRect(platforms[i].x1, h - platforms[i].y1, platforms[i].x2 - platforms[i].x1, -(platforms[i].y2 - platforms[i].y1));
+	}
+	
 }
 function handleInput(){
 	for(var i = 0; i < 2; i++){
@@ -45,11 +63,16 @@ function handleInput(){
 function doLogic(){
 	for(var i = 0; i < 2; i++){
 		players[i].x += players[i].vx;
-		if(players[i].y + players[i].vy > 30){ // ground collision here
-			players[i].y += players[i].vy;
-		} else {
-			players[i].canJump = true;
-			players[i].vy = 0;
+		players[i].y += players[i].vy;
+		var pbox = pTor(players[i])
+		for(var j = 0; j < platforms.length; j++){
+			if(collide(platforms[j], pbox)){ // ground collision here
+				if(players[i].vy <= 0){
+					players[i].canJump = true;
+					players[i].vy = 0;
+				}
+				players[i].y += platforms[j].y2 - pbox.y1;
+			}
 		}
 	}
 }
