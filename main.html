@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+	<html>
+		<head><title> 1.3k pong </title></head>
+<body onkeydown="keys[event.key] = true;" onkeyup="keys[event.key] = false">
+	<canvas id="main" width="500" height="600"></canvas>
+	<canvas id="overlay" width="500" height="600" style="position:absolute"></canvas>
+	<script type="text/javascript"> 
+var ctx = document.getElementById("main").getContext("2d");
+var ctx2 = document.getElementById("overlay").getContext("2d");
+
+var keys = {};
+players = [
+	{x: 30, y: 30, vx: 0, vy: 0, left: 'a', right: 'd', jump:'w', hit: ' '},
+	{x: 60, y: 30, vx: 0, vy: 0, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
+]
+function clip(x, min, max){
+	if(x < min) x = min;
+	else if(x > max) x = max;
+	return x;
+}
+function draw(){
+	ctx.clearRect(0, 0, 500, 600);
+	ctx.fillRect(players[0].x-15, players[0].y-15, 30, 30);
+	ctx.fillRect(players[1].x-15, players[1].y-15, 30, 30);
+}
+function handleInput(){
+	for(var i = 0; i < 2; i++){
+		if(keys[players[i].left]) players[i].vx -= 0.1;
+		else if(keys[players[i].right]) players[i].vx += 0.1;
+		else players[i].vx /= 1.1;
+	}
+}
+function doLogic(){
+	for(var i = 0; i < 2; i++){
+		clip(players[i].vx, -3, 3);
+		clip(players[i].vy, -3, 3);
+		players[i].x += players[i].vx;
+		players[i].y += players[i].vy;
+	}
+}
+function loop(){
+	window.requestAnimationFrame(loop);
+	handleInput();
+	doLogic();
+	draw();
+}
+loop();
+	</script>
+	</body>
+</html>
