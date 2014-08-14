@@ -18,7 +18,8 @@ players = [
 	{x: 60, y: 100, vx: 0, vy: 0, canJump: true, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
 ]
 var platforms = [{x1: 30, y1: 30, x2: 750, y2: 40},
-				 {x1: 400, y1: 150, x2: 470, y2: 160}]
+				 {x1: 400, y1: 150, x2: 470, y2: 160},
+				 {x1: 300, y1: 100, x2: 350, y2: 160} ]
 function clip(x, min, max){
 	if(x < min) x = min;
 	else if(x > max) x = max;
@@ -29,8 +30,35 @@ function collide(r1, r2){
 		return true;
 		console.log("collided");
 	}
-	console.log("didn't collide")
+	//console.log("didn't collide")
 	return false;
+}
+function collisionDirection(r1, r2, v1){
+	if(r1.x1 > r2.x1 && r1.x2 < r2.x2){ // fully inside on x
+		if(v1.y > 0) return "Y";
+		else return "-Y";
+	} else if(r1.y1 > r2.y1 && r1.y2 < r2.y2){ //fully inside on y
+		if(v1.x > 0) return "X";
+		else return "-X";
+	}
+	var direction = Math.abs(v1.y / v1.x);
+	if(v1.y > 0){ //moving upwards
+		if(v1.x > 0){ //upper right
+			if((r1.y2 - r2.y1) / (r1.x2 - r2.x1)> direction) return "X"
+			else return "Y";
+		} else { //upper left
+			if((r1.y2 - r2.y1) / (r2.x2 - r1.x1) > direction) return "-X"
+			else return "Y";
+		}
+	} else { //downwards
+		if(v1.x > 0){ //lower right
+			if((r2.y2 - r1.y1) / (r1.x2 - r2.x1)> direction) return "X"
+			else return "-Y";
+		} else { //lower left
+			if((r2.y2 - r1.y1) / (r2.x2 - r1.x1)> direction) return "-X"
+			else return "-Y";
+		}
+	}
 }
 function pTor(p){
 	return {x1: p.x - 15, x2: p.x + 15, y1: p.y - 15, y2: p.y + 15};
@@ -67,11 +95,23 @@ function doLogic(){
 		var pbox = pTor(players[i])
 		for(var j = 0; j < platforms.length; j++){
 			if(collide(platforms[j], pbox)){ // ground collision here
-				if(players[i].vy <= 0){
-					players[i].canJump = true;
+				var collDir = collisionDirection(pbox, platforms[j], {x: players[i].vx, y: players[i].vy});
+				if(collDir === "-Y"){ // on ground
+					if(players[i].vy <= 0){
+						players[i].canJump = true;
+						players[i].vy = 0;
+					}
+					players[i].y += platforms[j].y2 - pbox.y1;
+				} else if(collDir === "Y"){
 					players[i].vy = 0;
+					players[i].y -= pbox.y2 - platforms[j].y1;
+				} else if(collDir === "X"){
+					players[i].vx *= -1;
+					players[i].x -= pbox.x2 - platforms[j].x1;
+				} else {
+					players[i].vx *= -1;
+					players[i].y += platforms[j].x2 - pbox.x1;
 				}
-				players[i].y += platforms[j].y2 - pbox.y1;
 			}
 		}
 	}
