@@ -9,13 +9,13 @@
 	<script type="text/javascript"> 
 var ctx = document.getElementById("main").getContext("2d");
 var ctx2 = document.getElementById("overlay").getContext("2d");
-var w = 800, h = 600;
+var w = 800, h = 600; var fps = 60;
 
 ctx2.strokeRect(0, 0, 20, 20);
 var keys = {};
 players = [
-	{x: 30, y: 100, vx: 0, vy: 0, canJump: true, left: 'a', right: 'd', jump:'w', hit: ' '},
-	{x: 60, y: 100, vx: 0, vy: 0, canJump: true, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
+	{x: 30, y: 100, vx: 0, vy: 0, canJump: true, canMove: true, hit: false, cooldown: 0, left: 'a',    right: 'd',     jump:'w',  hit: ' '},
+	{x: 60, y: 100, vx: 0, vy: 0, canJump: true, canMove: true, hit: false, cooldown: 0, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
 ]
 var platforms = [{x1: 30, y1: 30, x2: 750, y2: 40},
 				 {x1: 400, y1: 150, x2: 470, y2: 160},
@@ -28,9 +28,7 @@ function clip(x, min, max){
 function collide(r1, r2){
 	if(r1.x1 < r2.x2 && r1.y1 < r2.y2 && r1.x2 > r2.x1 && r1.y2 > r2.y1){
 		return true;
-		console.log("collided");
 	}
-	//console.log("didn't collide")
 	return false;
 }
 function collisionDirection(r1, r2, v1){
@@ -77,15 +75,22 @@ function draw(){
 }
 function handleInput(){
 	for(var i = 0; i < 2; i++){
-		if(keys[players[i].left]){
-			if(players[i].vx > -5) players[i].vx -= 0.3;
-		} else if(keys[players[i].right]){
-			if(players[i].vx < 5) players[i].vx += 0.3;
+		if(players[i].canMove){
+			if(keys[players[i].left]){
+				if(players[i].vx > -5) players[i].vx -= 0.3;
+			} else if(keys[players[i].right]){
+				if(players[i].vx < 5) players[i].vx += 0.3;
+			} else players[i].vx /= 1.1;
+			if(keys[players[i].jump] && players[i].canJump){
+				players[i].canJump = false;
+				players[i].vy += 10;
+			}
+			if(keys[players[i].hit]){
+				players[i].canMove = false;
+				players[i].cooldown = 5 * fps;
+			}
 		} else players[i].vx /= 1.1;
-		if(keys[players[i].jump] && players[i].canJump){
-			players[i].canJump = false;
-			players[i].vy += 10;
-		} else players[i].vy -= 0.3;
+		players[i].vy -= 0.3;
 	}
 }
 function doLogic(){
@@ -93,8 +98,9 @@ function doLogic(){
 		players[i].x += players[i].vx;
 		players[i].y += players[i].vy;
 		var pbox = pTor(players[i])
+		/*first deal with platforms */
 		for(var j = 0; j < platforms.length; j++){
-			if(collide(platforms[j], pbox)){ // ground collision here
+			if(collide(platforms[j], pbox)){
 				var collDir = collisionDirection(pbox, platforms[j], {x: players[i].vx, y: players[i].vy});
 				if(collDir === "-Y"){ // on ground
 					if(players[i].vy <= 0){
@@ -114,9 +120,15 @@ function doLogic(){
 				}
 			}
 		}
+		players[i].cooldown--;
+		if(players[i].cooldown <= 0) players[i].canMove = true;
 	}
 }
-function loop(){
+var lastTime = 0;
+function loop(time){
+	ctx2.clearRect(0,0,w,h);
+	ctx2.fillText(1000/(time-lastTime) + "", 20, 20);
+	lastTime = time;
 	window.requestAnimationFrame(loop);
 	handleInput();
 	doLogic();
