@@ -13,9 +13,13 @@ var w = 800, h = 600; var fps = 60;
 
 ctx2.strokeRect(0, 0, 20, 20);
 var keys = {};
-players = [
-	{x: 30, y: 100, vx: 0, vy: 0, canJump: true, canMove: true, hit: false, cooldown: 0, left: 'a',    right: 'd',     jump:'w',  hit: ' '},
-	{x: 60, y: 100, vx: 0, vy: 0, canJump: true, canMove: true, hit: false, cooldown: 0, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
+
+var attacks = [
+	{x1: 15, x2: 30, y1: 10, y2: 20, start: 0, end: 0.5, cooldown: 1, vx: 0.3, vy:10, damage: 30}
+];
+var players = [
+	{x: 30, y: 100, health: 100, vx: 0, vy: 0, canJump: true, canMove: true, hit: false, cooldown: 0, attack: null, attackTime: 0, attacks: attacks, left: 'a',    right: 'd',     jump:'w',  hit: ' '},
+	{x: 60, y: 100, health: 100, vx: 0, vy: 0, canJump: true, canMove: true, hit: false, cooldown: 0, attack: null, attackTime: 0, attacks: attacks, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
 ]
 var platforms = [{x1: 30, y1: 30, x2: 750, y2: 40},
 				 {x1: 400, y1: 150, x2: 470, y2: 160},
@@ -87,7 +91,9 @@ function handleInput(){
 			}
 			if(keys[players[i].hit]){
 				players[i].canMove = false;
-				players[i].cooldown = 5 * fps;
+				players[i].cooldown = players[i].attacks[0].cooldown;
+				players[i].attackTime = 0;
+				players[i].attack = 0;
 			}
 		} else players[i].vx /= 1.1;
 		players[i].vy -= 0.3;
@@ -95,33 +101,47 @@ function handleInput(){
 }
 function doLogic(){
 	for(var i = 0; i < 2; i++){
-		players[i].x += players[i].vx;
-		players[i].y += players[i].vy;
-		var pbox = pTor(players[i])
+		var p = players[i];
+		p.x += p.vx;
+		p.y += p.vy;
+		var pbox = pTor(p);
 		/*first deal with platforms */
 		for(var j = 0; j < platforms.length; j++){
 			if(collide(platforms[j], pbox)){
-				var collDir = collisionDirection(pbox, platforms[j], {x: players[i].vx, y: players[i].vy});
+				var collDir = collisionDirection(pbox, platforms[j], {x: p.vx, y: p.vy});
 				if(collDir === "-Y"){ // on ground
-					if(players[i].vy <= 0){
-						players[i].canJump = true;
-						players[i].vy = 0;
+					if(p.vy <= 0){
+						p.canJump = true;
+						p.vy = 0;
 					}
-					players[i].y += platforms[j].y2 - pbox.y1;
+					p.y += platforms[j].y2 - pbox.y1;
 				} else if(collDir === "Y"){
-					players[i].vy = 0;
-					players[i].y -= pbox.y2 - platforms[j].y1;
+					p.vy = 0;
+					p.y -= pbox.y2 - platforms[j].y1;
 				} else if(collDir === "X"){
-					players[i].vx *= -1;
-					players[i].x -= pbox.x2 - platforms[j].x1;
+					p.vx *= -1;
+					p.x -= pbox.x2 - platforms[j].x1;
 				} else {
-					players[i].vx *= -1;
-					players[i].y += platforms[j].x2 - pbox.x1;
+					p.vx *= -1;
+					p.y += platforms[j].x2 - pbox.x1;
 				}
 			}
 		}
-		players[i].cooldown--;
-		if(players[i].cooldown <= 0) players[i].canMove = true;
+		if(p.attack != null && p.attackTime > p.attacks[p.attack].start * fps && p.attackTime < p.attacks[p.attack].end * fps){ //player is attacking, check agains other players
+			for(var j = 0; j< 2; j++){
+				if(j != i){
+					if(collide(pTor(players[j]), {x1: p.x + p.attacks[p.attack].x1, x2: p.x + p.attacks[p.attack].x2,
+												  y1: p.y + p.attacks[p.attack].y1, y2: p.x + p.attacks[p.attack].y2})){
+						players[j].vx += p.attacks[p.attack].vx;
+						players[j].vy += p.attacks[p.attack].vy;
+						players[i].health += p.attacks[p.attack].damage;
+					}
+				}
+			}
+		}
+		p.attackTime++;
+		p.cooldown--;
+		if(p.cooldown <= 0) p.canMove = true;
 	}
 }
 var lastTime = 0;
