@@ -1,27 +1,30 @@
 <!DOCTYPE html>
 	<html>
 		<head><title> 1.3k pong </title></head>
-<body onkeydown="keys[event.key] = true;" onkeyup="keys[event.key] = false">
+<body onkeydown="console.log(event.key);keys[event.key] = true;" onkeyup="keys[event.key] = false">
 	<div style="position:relative">
-		<canvas id="main" width="800" height="600" style="position:absolute" ></canvas>
-		<canvas id="overlay" width="800" height="600" style="position:absolute"></canvas>
+		<canvas id="main" width="1024" height="512" style="position:absolute" ></canvas>
+		<canvas id="overlay" width="1024" height="512" style="position:absolute"></canvas>
+		<canvas id="lowres" width="1024" height="512" style="position:absolute"></canvas>
 	</div>
 	<script type="text/javascript"> 
 var ctx = document.getElementById("main").getContext("2d");
 var ctx2 = document.getElementById("overlay").getContext("2d");
-var w = 800, h = 600; var fps = 60;
+var ctx3 = document.getElementById("lowres").getContext("2d");
+var w = 1024, h = 512; var fps = 60;
 
 ctx2.strokeRect(0, 0, 20, 20);
 var keys = {};
 
 var attacks = [
-	{x1: 15, x2: 30, y1: 10, y2: 20, start: 0, end: 0.5, cooldown: 1, vx: 0.3, vy:10, damage: 30, hitLag: 0.5}
+	{x1: 15, x2: 30, y1: 0,  y2: 15, start: 0, end: 0.5, cooldown: 0.5, vx: 0.3, vy:10, damage: -10, hitLag: 0.5},
+	{x1: 15, x2: 50, y1: -5, y2: 10, start: 0.5, end: 2, cooldown: 1,   vx: 5  , vy:0,  damage: -3 , hitLag: 0.3}
 ];
 var players = [
-	{x: 30, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: 'a',    right: 'd',     jump:'w',  hit: ' '},
-	{x: 60, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: 'Left', right: 'Right', jump:'Up', hit: '0'}
+	{x: 30, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: 'a',    right: 'd',     jump:'w',  hit1: ' ', hit2:'Shift'},
+	{x: 60, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: 'Left', right: 'Right', jump:'Up', hit1: '.', hit2: ','}
 ];
-var platforms = [{x1: 30, y1: 30, x2: 750, y2: 40},
+var platforms = [{x1: 30, y1: 30, x2: 950, y2: 40},
 				 {x1: 400, y1: 150, x2: 470, y2: 160},
 				 {x1: 300, y1: 100, x2: 350, y2: 160} ]
 function clip(x, min, max){
@@ -65,6 +68,11 @@ function collisionDirection(r1, r2, v1){
 function pTor(p){
 	return {x1: p.x - 15, x2: p.x + 15, y1: p.y - 15, y2: p.y + 15};
 }
+var redrawLowres = true;
+var s =4, ws = w/s, hs = h/s;
+var data2 = ctx3.createImageData(w, h);
+var subline = ctx3.createImageData(s, 1).data;
+
 function draw(){
 	ctx.clearRect(0, 0, w, h);
 	ctx.fillStyle = "blue";
@@ -81,10 +89,35 @@ function draw(){
 		var p = players[i];
 		var a = p.attacks[p.attack];
 		if(p.attack != null && p.attackTime > a.start * fps && p.attackTime < a.end * fps){
-			ctx2.fillRect( p.x + a.x1 * p.direction, h - (p.y + a.y1), (a.x2 - a.x1) * p.direction, a.y2 - a.y1);
+			ctx2.fillRect( p.x + a.x1 * p.direction, h - (p.y + a.y1), (a.x2 - a.x1) * p.direction, -(a.y2 - a.y1));
 		}
 	}
 	
+	if(redrawLowres){
+		ctx3.clearRect(0, 0, w, h);
+		
+		ctx3.lineWidth = 1;
+		ctx3.fillStyle = "red";
+		ctx3.fillRect(ws/32, 2*hs/32, (players[1].health / 100 ) * 14*ws/32, hs/32);
+		ctx3.strokeRect(ws/32, 2*hs/32, 14 * ws/32, hs/32);
+
+		ctx3.fillStyle = "blue";
+		ctx3.fillRect(31 * ws/32, 2*hs/32, -(players[0].health / 100 ) * 14 * ws/32, hs/32);
+		ctx3.strokeRect(17 * ws/32, 2*hs/32, 14 * ws/32, hs/32);
+
+		var data = ctx3.getImageData(0, 0, ws, hs);
+		for(var row = 0; row < hs; row++){
+			for(var col = 0; col < ws; col++){
+				var o = (ws * row + col) * 4;
+				for(var x = 0; x < s; x++) subline.set(data.data.subarray(o, o + 4), x*4);
+				for(var j = 0; j < s; j++){
+					try{data2.data.set(subline, (w * (row * s + j) + col * s) * 4);} catch(e){ console.log((w * (row + j) + col) * 4)}
+				}
+			}
+		}
+		ctx3.putImageData(data2, 0, 0);
+		redrawLowres = false;
+	}
 	
 }
 function handleInput(){
@@ -102,11 +135,16 @@ function handleInput(){
 				p.canJump = false;
 				p.vy += 10;
 			}
-			if(keys[p.hit]){
+			if(keys[p.hit1]){
 				p.canMove = false;
 				p.cooldown = p.attacks[0].cooldown * fps;
 				p.attackTime = 0;
 				p.attack = 0;
+			} else if(keys[p.hit2]){
+				p.canMove = false;
+				p.cooldown = p.attacks[1].cooldown * fps;
+				p.attackTime = 0;
+				p.attack = 1;
 			}
 		} else p.vx /= 1.1;
 		p.vy -= 0.3;
@@ -140,6 +178,8 @@ function doLogic(){
 				}
 			}
 		}
+	} for(var i = 0; i < 2; i++){
+		var p = players[i];
 		var a = p.attacks[p.attack];
 		if(p.attack != null && p.attackTime > a.start * fps && p.attackTime < a.end * fps){ //player is attacking, check agains other players
 			for(var j = 0; j < 2; j++){
@@ -150,6 +190,7 @@ function doLogic(){
 						players[j].vy += p.attacks[p.attack].vy;
 						players[j].health += p.attacks[p.attack].damage;
 						players[j].hitWith[p.attack] = a.hitLag * fps;
+						redrawLowres = true;
 					}
 				}
 			}
