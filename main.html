@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 	<html>
 		<head><title> 1.3k pong </title></head>
-<body onkeydown="console.log(event.key);keys[event.key] = true;" onkeyup="keys[event.key] = false">
+<body onkeydown="keys[event.keyCode] = true;" onkeyup="keys[event.keyCode] = false">
 	<div style="position:relative">
 		<canvas id="main" width="1024" height="512" style="position:absolute" ></canvas>
 		<canvas id="overlay" width="1024" height="512" style="position:absolute"></canvas>
@@ -21,12 +21,12 @@ var attacks = [
 	{x1: 15, x2: 50, y1: -5, y2: 10, start: 0.5, end: 2, cooldown: 1,   vx: 5  , vy:0,  damage: -3 , hitLag: 0.3}
 ];
 var players = [
-	{x: 30, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: 'a',    right: 'd',     jump:'w',  hit1: ' ', hit2:'Shift'},
-	{x: 60, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: 'Left', right: 'Right', jump:'Up', hit1: '.', hit2: ','}
+	{x: 30, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: '65',    right: '68',     jump:'87',  hit1: '32', hit2:'16'},
+	{x: 60, y: 100, health: 100, vx: 0, vy: 0, direction: 1, canJump: true, canMove: true, cooldown: 0, attack: null, attackTime: 0, hitWith: {}, attacks: attacks, left: '37', right: '39', jump:'38', hit1: '190', hit2: '188'}
 ];
 var platforms = [{x1: 30, y1: 30, x2: 950, y2: 40},
 				 {x1: 400, y1: 150, x2: 470, y2: 160},
-				 {x1: 300, y1: 100, x2: 350, y2: 160} ]
+				 {x1: 300, y1: 50, x2: 350, y2: 160} ]
 function clip(x, min, max){
 	if(x < min) x = min;
 	else if(x > max) x = max;
@@ -49,7 +49,7 @@ function collisionDirection(r1, r2, v1){
 	var direction = Math.abs(v1.y / v1.x);
 	if(v1.y > 0){ //moving upwards
 		if(v1.x > 0){ //upper right
-			if((r1.y2 - r2.y1) / (r1.x2 - r2.x1)> direction) return "X";
+			if((r1.y2 - r2.y1) / (r1.x2 - r2.x1) > direction) return "X";
 			else return "Y";
 		} else { //upper left
 			if((r1.y2 - r2.y1) / (r2.x2 - r1.x1) > direction) return "-X";
@@ -174,7 +174,7 @@ function doLogic(){
 					p.x -= pbox.x2 - platforms[j].x1;
 				} else {
 					p.vx *= -1;
-					p.y += platforms[j].x2 - pbox.x1;
+					p.x += platforms[j].x2 - pbox.x1;
 				}
 			}
 		}
@@ -186,7 +186,12 @@ function doLogic(){
 				if(j !== i && !(players[j].hitWith[p.attack] > 0)){
 					if(collide(pTor(players[j]), {x1: p.x + (p.direction === 1 ? a.x1 : -a.x2), x2: p.x + (p.direction === 1 ? a.x2 : -a.x1),
 												  y1: p.y + a.y1, y2: p.y + a.y2})){
-						players[j].vx += p.attacks[p.attack].vx * p.direction;
+						if(players[j].vx * p.direction * p.attacks[p.attack].vx < 0) //player moving towards strike, bounce back
+							players[j].vx *= -0.3;
+						players[j].vx += a.vx * p.direction;
+						if(players[j].vy * a.vy < 0){ //player moving towards strike, bounce back
+							players[j].vy *= -0.3;
+						}
 						players[j].vy += p.attacks[p.attack].vy;
 						players[j].health += p.attacks[p.attack].damage;
 						players[j].hitWith[p.attack] = a.hitLag * fps;
