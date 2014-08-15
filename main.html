@@ -92,8 +92,9 @@ function draw(){
 			ctx2.fillRect( p.x + a.x1 * p.direction, h - (p.y + a.y1), (a.x2 - a.x1) * p.direction, -(a.y2 - a.y1));
 		}
 	}
-	
-	if(redrawLowres){
+}
+function drawLowres(){
+	window.setTimeout(function(){
 		ctx3.clearRect(0, 0, w, h);
 		
 		ctx3.lineWidth = 1;
@@ -116,9 +117,7 @@ function draw(){
 			}
 		}
 		ctx3.putImageData(data2, 0, 0);
-		redrawLowres = false;
-	}
-	
+	}, 0); 
 }
 function handleInput(){
 	for(var i = 0; i < 2; i++){
@@ -195,7 +194,7 @@ function doLogic(){
 						players[j].vy += p.attacks[p.attack].vy;
 						players[j].health += p.attacks[p.attack].damage;
 						players[j].hitWith[p.attack] = a.hitLag * fps;
-						redrawLowres = true;
+						drawLowres();
 					}
 				}
 			}
@@ -215,6 +214,7 @@ function loop(time){
 	doLogic();
 	draw();
 }
+drawLowres();
 loop();
 	</script>
 	</body>
