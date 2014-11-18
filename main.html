@@ -6,8 +6,12 @@
 		<canvas id="main" width="1024" height="512" style="position:absolute" ></canvas>
 		<canvas id="overlay" width="1024" height="512" style="position:absolute"></canvas>
 		<canvas id="lowres" width="1024" height="512" style="position:absolute"></canvas>
+		
 	</div>
-	<script type="text/javascript"> 
+	
+	<script type="text/javascript" src="webgl.js"></script>
+	<script type="text/javascript">
+console.log("start main");
 var ctx = document.getElementById("main").getContext("2d");
 var ctx2 = document.getElementById("overlay").getContext("2d");
 var ctx3 = document.getElementById("lowres").getContext("2d");

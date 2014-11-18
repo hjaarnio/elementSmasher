@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+	<html>
+		<head><title> 1.3k pong </title></head>
+<body>
+	<div style="position:relative; width:1024px; height:512px;" onclick="clicked(event)" onmousemove="clicked(event)">
+		<canvas id="main" width="1024" height="512" style="position:absolute"></canvas>
+		<canvas id="overlay" width="1024" height="512" style="position:absolute; opacity:0.8;"></canvas>
+		<canvas id="lowres" width="1024" height="512" style="position:absolute"></canvas>
+		
+	</div>
+	<script src="libs/kdTree.js" type="text/javascript"></script>
+	<script src="vector.js" type="text/javascript"></script>
+	<script type="text/javascript">
+console.log("start main");
+var ctx = document.getElementById("main").getContext("2d");
+var ctx2 = document.getElementById("overlay").getContext("2d");
+var ctx3 = document.getElementById("lowres").getContext("2d");
+var w = 1024, h = 512; var fps = 60;
+
+var particles = [];
+var constraints = [];
+
+var error = 0.01;
+var damp = 0.01;
+var damp2 = damp/2;
+pW = 10;
+pW2 = pW/2;
+pD = 7;
+pD2 = pD * pD;
+
+function distSquare(v1, v2){
+	var dX = v1.x - v2.x;
+	var dY = v1.y - v2.y
+	return dX * dX + dY * dY;
+}
+var tree = new kdTree([], distSquare, ["x", "y"]);
+
+var particle = function(coords, prevCoords, a){
+	this.coords = coords;
+	this.prevCoords = prevCoords;
+	this.a = a;
+	this.moving = true;
+}
+
+var g = new v(0, 50);
+
+var lastTime = 0;
+function loop(time){
+	timestep = (time-lastTime) / 1000; // seconds since last frame
+	ctx2.clearRect(0, 0, w, h);
+	ctx2.fillText(1/timestep + "", 20, 20);
+	ctx2.fillText("" + timestep, 20, 40);
+	lastTime = time;
+	window.requestAnimationFrame(loop);
+
+	forces();
+	verlet(0.017);//timestep);
+	//for(var i = 0; i < 1; i++)
+	constraints();
+
+	drawParticles();
+}
+loop();
+
+function clicked(event){
+	//alert("click")
+	
+	var rect = overlay.getBoundingClientRect();
+	var cX = event.clientX - rect.left;//(event.clientX - document.getElementById("ui").offsetLeft);
+	var cY = event.clientY - rect.top;
+	//console.log(cX, cY)
+	var coords = new v(cX, cY);
+
+	if(event.buttons != 1){
+		 if(event.buttons == 4) {
+			var nearest = tree.nearest(coords, 20, pD2 );
+			
+			for(i = nearest.length - 1; i >= 0; i--){
+				nearest[i][0].y -= 10;
+			}
+		}return;
+	}
+
+
+	tree.insert(coords);
+	particles.push(new particle(coords, coords.copy(), new v(0, 0)));
+}
+function verlet(t){
+	for(var i = particles.length - 1; i >= 0; i--){
+		var p = particles[i];
+		//if(!p.moving) continue;
+		var temp = p.coords.copy();
+		p.coords.multiply(2 - damp);
+		p.coords.sub(p.prevCoords.multiply(1 - damp));
+		p.coords.add(p.a.multiply(t*t));
+		p.prevCoords = temp;
+		
+	}
+}
+function forces(){
+	for(var i = particles.length - 1; i >= 0; i--){
+		particles[i].a = g.copy();
+	}
+}
+function constraints(){
+	for(var i = particles.length - 1; i >= 0; i--){
+		var p = particles[i];
+		p.coords.x = Math.min(Math.max(0, p.coords.x), w);
+		p.coords.y = Math.min(Math.max(0, p.coords.y), h);
+		
+	}
+	for(var i = particles.length - 1; i > 0; i--){
+		/*var nearest = tree.nearest(particles[i].coords, 6, pD2);
+		for(j = nearest.length - 1; j >= 0; j--){
+			var dLenSquare = nearest[j][1];
+			var c2 = nearest[j][0];
+			var c1 = particles[i].coords;
+			
+			if(dLenSquare < pD2){
+				var delta = c2.copy().sub(c1); //new v(dX, dY);
+				if(dLenSquare === 0){
+					c1.y += 0.001;
+					c2.x += 0.001;
+					delta = c2.copy().sub(c1);
+					dLenSquare = delta.lengthSquare();
+				//dLenSquare = delta.length();
+				}
+				//var len2 = delta.dot(delta);
+				var approx = pD2 / (delta.dot(delta) + pD2) - 0.5
+				delta.multiply(approx);
+				//var derp = d2.length();
+				//d2.multiply(0.5);
+				c1.sub(delta);
+				c2.add(delta);
+				//var diff = (dLen - pD) / dLen;
+				
+				//p1.coords.add(delta.multiply(0.5 * diff));
+				//p2.coords.sub(delta);
+				//if(isNaN(p1.coords.x + p1.coords.y + p2.coords.x + p2.coords.y)){
+				//	console.log("blerp")
+				//}
+			}
+		}*/
+		for(var j = i - 1; j >= 0; j--){
+			var p1 = particles[i], p2 = particles[j];
+			if(!(p1.moving || p2.moving)) continue;
+			var dX = (p2.coords.x - p1.coords.x); if(dX > pD2) continue;
+			var dY = (p2.coords.y - p1.coords.y); if(dY > pD2) continue;
+			var dLenSquare = dX * dX + dY * dY;
+			//var dLen = delta.length();
+			if(dLenSquare < pD2){
+				
+				
+				var delta = new v(dX, dY);
+				if(dLenSquare === 0){
+					p1.coords.y += 0.001;
+					p2.coords.x += 0.001;
+					delta = p2.coords.copy().sub(p1.coords);
+					dLenSquare = delta.lengthSquare();
+				//dLenSquare = delta.length();
+				}
+				if(p1.moving != p2.moving){
+					delta.multiply(0.5)
+					if(p1.moving){
+						particles[j] = p1;
+					} 
+					p2.coords.sub(delta);
+					p2.prevCoords.sub(delta);
+					particles.splice(i, 1);
+					j = 0;
+					continue;
+				}
+				var approx = pD2 / (delta.dot(delta) + pD2) - 0.5
+				delta.multiply(approx);
+
+				p1.coords.sub(delta);
+				p2.coords.add(delta);
+				p1.moving = p2.moving = true;
+				//var diff = (dLen - pD) / dLen;
+				
+				//p1.coords.add(delta.multiply(0.5 * diff));
+				//p2.coords.sub(delta);
+				
+				
+			}
+		}
+	}
+	for(i = constraints.length - 1; i >= 0; i--){
+			var c = constraints[i];
+			var p1 = c.p1, p2 = c.p2;
+			var dX = (p2.coords.x - p1.coords.x); if(dX > c.l2) continue;
+			var dY = (p2.coords.y - p1.coords.y); if(dY > c.l2) continue;
+			var dLenSquare = dX * dX + dY * dY;
+			var delta = new v(dX, dY);
+			if(dLenSquare === 0){
+				p1.coords.y += 0.001;
+				p2.coords.x += 0.001;
+				delta = p2.coords.copy().sub(p1.coords);
+				dLenSquare = delta.lengthSquare();
+			//dLenSquare = delta.length();
+			}
+			var approx = pD2 / (delta.dot(delta) + pD2) - 0.5
+			delta.multiply(approx);
+			p1.coords.sub(delta);
+			p2.coords.add(delta);
+	}
+	for(var i = particles.length - 1; i >= 0; i--){
+		var p = particles[i];
+		if(p.moving && Math.abs(p.coords.x - p.prevCoords.x) < error && Math.abs(p.coords.y - p.prevCoords.y) < error){
+			p.moving = false;
+		}
+		
+	}
+}
+
+function drawParticles(){
+	ctx2.setTransform(1, 0, 0, 1, 0, 0);
+	ctx2.clearRect(0, 0, w, h);
+	ctx2.fillStyle = "blue";
+	ctx2.clearRect(0, 0, w, h);
+	for(var i = particles.length - 1; i >= 0; i--){
+		var p = particles[i];
+		ctx2.setTransform(1, 0, 0, 1, p.coords.x, p.coords.y);
+		ctx2.beginPath();
+		ctx2.arc(0, 0, 2*pW/3, 0, Math.PI * 2);
+		ctx2.closePath();
+		
+		ctx2.fill();
+		//ctx2.fillRect(p.coords.x - pW2, p.coords.y - pW2, pW, pW);
+	}
+}
+	</script>
+	</body>
+</html>
