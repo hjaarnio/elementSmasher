@@ -199,7 +199,7 @@ function constraints(){
 				dLenSquare = delta.lengthSquare();
 			//dLenSquare = delta.length();
 			}
-			var approx = pD2 / (delta.dot(delta) + pD2) - 0.5
+			var approx = c.l2 / (delta.dot(delta) + c.l2) - 0.5
 			delta.multiply(approx);
 			p1.coords.sub(delta);
 			p2.coords.add(delta);
