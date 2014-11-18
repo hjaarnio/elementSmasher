@@ -47,16 +47,16 @@ var g = new v(0, 50);
 var lastTime = 0;
 function loop(time){
 	timestep = (time-lastTime) / 1000; // seconds since last frame
-	ctx2.clearRect(0, 0, w, h);
-	ctx2.fillText(1/timestep + "", 20, 20);
-	ctx2.fillText("" + timestep, 20, 40);
+	ctx3.clearRect(0, 0, w, h);
+	ctx3.fillText(1/timestep + "", 20, 20);
+	ctx3.fillText("" + timestep, 20, 40);
 	lastTime = time;
 	window.requestAnimationFrame(loop);
 
 	forces();
-	verlet(0.017);//timestep);
+	verlet(timestep);
 	//for(var i = 0; i < 1; i++)
-	constraints();
+	doConstraints();
 
 	drawParticles();
 }
@@ -102,7 +102,7 @@ function forces(){
 		particles[i].a = g.copy();
 	}
 }
-function constraints(){
+function doConstraints(){
 	for(var i = particles.length - 1; i >= 0; i--){
 		var p = particles[i];
 		p.coords.x = Math.min(Math.max(0, p.coords.x), w);
