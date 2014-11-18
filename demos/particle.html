@@ -54,7 +54,7 @@ function loop(time){
 	window.requestAnimationFrame(loop);
 
 	forces();
-	verlet(timestep);
+	verlet(0.017);//timestep);
 	//for(var i = 0; i < 1; i++)
 	doConstraints();
 
