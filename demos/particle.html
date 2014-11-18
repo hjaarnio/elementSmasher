@@ -2,7 +2,7 @@
 	<html>
 		<head><title> 1.3k pong </title></head>
 <body>
-	<div style="position:relative; width:1024px; height:512px;" onclick="clicked(event)" onmousemove="clicked(event)">
+	<div style="position:relative; width:1024px; height:512px;" onclick="" onmousemove="mousemove(event)" onmousedown="mousedown(event)" onmouseup="mouseup(event)" onmouseout="mouseout(event)">
 		<canvas id="main" width="1024" height="512" style="position:absolute"></canvas>
 		<canvas id="overlay" width="1024" height="512" style="position:absolute; opacity:0.8;"></canvas>
 		<canvas id="lowres" width="1024" height="512" style="position:absolute"></canvas>
@@ -23,10 +23,14 @@ var constraints = [];
 var error = 0.01;
 var damp = 0.01;
 var damp2 = damp/2;
-pW = 10;
+pW = 10; //width drawn
 pW2 = pW/2;
-pD = 7;
+pD = 5.01;           //the radius in which water affects surrounding drops
 pD2 = pD * pD;
+p2D = 5;          //the radius which water aims to maintain with surrounding drops
+p2D2 = p2D * p2D;
+p3D = 5;          //the radius in which drops merge
+p3D2 = p3D * p3D;
 
 function distSquare(v1, v2){
 	var dX = v1.x - v2.x;
@@ -62,27 +66,31 @@ function loop(time){
 }
 loop();
 
-function clicked(event){
-	//alert("click")
-	
+var pressed = false;
+function mousedown(event){
+	pressed = true;
+}
+function mouseup(event){
+	pressed = false;
+}
+function mouseout(event){
+	pressed = false;
+}
+function mousemove(event){
+	if(!pressed){
+		 return;
+	}
+
 	var rect = overlay.getBoundingClientRect();
 	var cX = event.clientX - rect.left;//(event.clientX - document.getElementById("ui").offsetLeft);
 	var cY = event.clientY - rect.top;
 	//console.log(cX, cY)
 	var coords = new v(cX, cY);
+console.log(event.which)
+	
 
-	if(event.buttons != 1){
-		 if(event.buttons == 4) {
-			var nearest = tree.nearest(coords, 20, pD2 );
-			
-			for(i = nearest.length - 1; i >= 0; i--){
-				nearest[i][0].y -= 10;
-			}
-		}return;
-	}
-
-
-	tree.insert(coords);
+	//console.log(coords);
+	//tree.insert(coords);
 	particles.push(new particle(coords, coords.copy(), new v(0, 0)));
 }
 function verlet(t){
@@ -149,8 +157,6 @@ function doConstraints(){
 			var dLenSquare = dX * dX + dY * dY;
 			//var dLen = delta.length();
 			if(dLenSquare < pD2){
-				
-				
 				var delta = new v(dX, dY);
 				if(dLenSquare === 0){
 					p1.coords.y += 0.001;
@@ -159,7 +165,7 @@ function doConstraints(){
 					dLenSquare = delta.lengthSquare();
 				//dLenSquare = delta.length();
 				}
-				if(p1.moving != p2.moving){
+				if(dLenSquare <= p3D2 && (p1.moving != p2.moving)){
 					delta.multiply(0.5)
 					if(p1.moving){
 						particles[j] = p1;
@@ -170,7 +176,7 @@ function doConstraints(){
 					j = 0;
 					continue;
 				}
-				var approx = pD2 / (delta.dot(delta) + pD2) - 0.5
+				var approx = p2D2 / (delta.dot(delta) + p2D2) - 0.5
 				delta.multiply(approx);
 
 				p1.coords.sub(delta);
@@ -220,6 +226,7 @@ function drawParticles(){
 	ctx2.clearRect(0, 0, w, h);
 	for(var i = particles.length - 1; i >= 0; i--){
 		var p = particles[i];
+		ctx2.fillStyle = p.moving?"red":"blue";
 		ctx2.setTransform(1, 0, 0, 1, p.coords.x, p.coords.y);
 		ctx2.beginPath();
 		ctx2.arc(0, 0, 2*pW/3, 0, Math.PI * 2);
