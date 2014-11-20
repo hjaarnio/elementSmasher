@@ -10,6 +10,7 @@
 	</div>
 	<script src="libs/kdTree.js" type="text/javascript"></script>
 	<script src="vector.js" type="text/javascript"></script>
+	<script src="constraint.js" type="text/javascript"></script>
 	<script type="text/javascript">
 console.log("start main");
 var ctx = document.getElementById("main").getContext("2d");
@@ -17,7 +18,7 @@ var ctx2 = document.getElementById("overlay").getContext("2d");
 var ctx3 = document.getElementById("lowres").getContext("2d");
 var w = 1024, h = 512; var fps = 60;
 
-var particles = [];
+var particles = [[], []]; // 0 rigid, 1 water
 var constraints = [];
 
 var error = 0.01;
@@ -39,16 +40,22 @@ function distSquare(v1, v2){
 }
 var tree = new kdTree([], distSquare, ["x", "y"]);
 
-var particle = function(coords, prevCoords, a){
+var particle = function(coords, prevCoords, a, m){
 	this.coords = coords;
 	this.prevCoords = prevCoords;
 	this.a = a;
 	this.moving = true;
+	if(m === null) this.invM = 0;
+	else this.invM = 1/m;
 }
 
 var g = new v(0, 50);
 
 var lastTime = 0;
+var lastTimestep = 0.017;
+var tRatio = 1;
+var t2 = lastTimestep * lastTimestep;
+
 function loop(time){
 	timestep = (time-lastTime) / 1000; // seconds since last frame
 	ctx3.clearRect(0, 0, w, h);
@@ -57,18 +64,40 @@ function loop(time){
 	lastTime = time;
 	window.requestAnimationFrame(loop);
 
+	tRatio = timestep/lastTimestep;
+	t2 = timestep*timestep;//0.017 * 0.017
+
 	forces();
-	verlet(0.017);//timestep);
+	verlet();//timestep);
 	//for(var i = 0; i < 1; i++)
 	doConstraints();
 
 	drawParticles();
+	
+	lastTimestep = timestep;
 }
-loop();
+loop(1);
 
 var pressed = false;
+var tri = 0;
 function mousedown(event){
-	pressed = true;
+	if(event.altKey){
+		var rect = overlay.getBoundingClientRect();
+		var cX = event.clientX - rect.left;//(event.clientX - document.getElementById("ui").offsetLeft);
+		var cY = event.clientY - rect.top;
+	
+		var coords = new v(cX, cY);
+		var p = new particle(coords, coords.copy(), new v(0, 0), tri===2?20:1)
+		
+		for(i = particles[0].length - 1; i >= particles[0].length - tri; i--){
+			constraints.push(new Constraint(p, particles[0][i], coords.copy().sub(particles[0][i].coords).length()));
+		}
+		tri++;
+		if(tri === 3) tri = 0;
+		
+		particles[0].push(p);
+	}
+	else pressed = true;
 }
 function mouseup(event){
 	pressed = false;
@@ -80,7 +109,6 @@ function mousemove(event){
 	if(!pressed){
 		 return;
 	}
-
 	var rect = overlay.getBoundingClientRect();
 	var cX = event.clientX - rect.left;//(event.clientX - document.getElementById("ui").offsetLeft);
 	var cY = event.clientY - rect.top;
@@ -91,38 +119,47 @@ console.log(event.which)
 
 	//console.log(coords);
 	//tree.insert(coords);
-	particles.push(new particle(coords, coords.copy(), new v(0, 0)));
+	particles[1].push(new particle(coords, coords.copy(), new v(0, 0), event.ctrlKey?null:1));
 }
-function verlet(t){
-	for(var i = particles.length - 1; i >= 0; i--){
-		var p = particles[i];
-		//if(!p.moving) continue;
-		var temp = p.coords.copy();
-		p.coords.multiply(2 - damp);
-		p.coords.sub(p.prevCoords.multiply(1 - damp));
-		p.coords.add(p.a.multiply(t*t));
-		p.prevCoords = temp;
-		
+function verlet(){
+	for(var j = particles.length - 1; j >= 0; j--){
+		for(var i = particles[j].length - 1; i >= 0; i--){
+			var p = particles[j][i];
+			//if(!p.moving) continue;
+			var temp = p.coords.copy();
+			p.coords.multiply(2 - damp);
+			p.coords.sub(p.prevCoords.multiply(1 - damp));
+			p.coords.add(p.a.multiply(t2));
+			p.prevCoords = temp;
+
+			//p.coords.add(p.prevCoords.multiply(-1).add(p.coords).multiply(tRatio))
+			//p.coords.add(p.a.multiply(t2));
+			//p.prevCoords = temp;
+		}
 	}
 }
 function forces(){
-	for(var i = particles.length - 1; i >= 0; i--){
-		particles[i].a = g.copy();
+	for(var j = particles.length - 1; j >= 0; j--){
+		for(var i = particles[j].length - 1; i >= 0; i--){
+			particles[j][i].a = g.copy();
+		}
 	}
 }
 function doConstraints(){
-	for(var i = particles.length - 1; i >= 0; i--){
-		var p = particles[i];
-		p.coords.x = Math.min(Math.max(0, p.coords.x), w);
-		p.coords.y = Math.min(Math.max(0, p.coords.y), h);
+	for(var j = particles.length - 1; j >= 0; j--){
+		for(var i = particles[j].length - 1; i >= 0; i--){
+			var p = particles[j][i];
+			p.coords.x = Math.min(Math.max(0, p.coords.x), w);
+			p.coords.y = Math.min(Math.max(0, p.coords.y), h);
 		
+		}
 	}
-	for(var i = particles.length - 1; i > 0; i--){
-		/*var nearest = tree.nearest(particles[i].coords, 6, pD2);
+	for(var i = particles[1].length - 1; i > 0; i--){
+		/*var nearest = tree.nearest(particles[1][i].coords, 6, pD2);
 		for(j = nearest.length - 1; j >= 0; j--){
 			var dLenSquare = nearest[j][1];
 			var c2 = nearest[j][0];
-			var c1 = particles[i].coords;
+			var c1 = particles[1][i].coords;
 			
 			if(dLenSquare < pD2){
 				var delta = c2.copy().sub(c1); //new v(dX, dY);
@@ -150,12 +187,12 @@ function doConstraints(){
 			}
 		}*/
 		for(var j = i - 1; j >= 0; j--){
-			var p1 = particles[i], p2 = particles[j];
+			var p1 = particles[1][i], p2 = particles[1][j];
 			if(!(p1.moving || p2.moving)) continue;
 			var dX = (p2.coords.x - p1.coords.x); if(dX > pD2) continue;
 			var dY = (p2.coords.y - p1.coords.y); if(dY > pD2) continue;
 			var dLenSquare = dX * dX + dY * dY;
-			//var dLen = delta.length();
+			
 			if(dLenSquare < pD2){
 				var delta = new v(dX, dY);
 				if(dLenSquare === 0){
@@ -168,22 +205,24 @@ function doConstraints(){
 				if(dLenSquare <= p3D2 && (p1.moving != p2.moving)){
 					delta.multiply(0.5)
 					if(p1.moving){
-						particles[j] = p1;
+						particles[1][j] = p1;
 					} 
 					p2.coords.sub(delta);
 					p2.prevCoords.sub(delta);
-					particles.splice(i, 1);
+					particles[1].splice(i, 1);
 					j = 0;
 					continue;
 				}
-				var approx = p2D2 / (delta.dot(delta) + p2D2) - 0.5
-				delta.multiply(approx);
-
-				p1.coords.sub(delta);
-				p2.coords.add(delta);
+				//var approx = p2D2 / (dLenSquare + p2D2) - 0.5
+				if(p1.invM + p2.invM === 0) continue;
+				var approx = (dLenSquare - p2D2) / ((dLenSquare + p2D2) * (p1.invM + p2.invM))
+				delta.multiply(approx / 2);
+				p1.coords.add(delta.copy().multiply(p1.invM));
+				p2.coords.sub(delta.multiply(p2.invM));
 				p1.moving = p2.moving = true;
-				//var diff = (dLen - pD) / dLen;
-				
+
+				//var dLen = delta.length();
+				//var diff = (dLen - pD) / (dLen * (p1.invM + p2.invM));
 				//p1.coords.add(delta.multiply(0.5 * diff));
 				//p2.coords.sub(delta);
 				
@@ -205,13 +244,15 @@ function doConstraints(){
 				dLenSquare = delta.lengthSquare();
 			//dLenSquare = delta.length();
 			}
-			var approx = c.l2 / (delta.dot(delta) + c.l2) - 0.5
-			delta.multiply(approx);
-			p1.coords.sub(delta);
-			p2.coords.add(delta);
+			var approx = (dLenSquare - c.l2) / ((dLenSquare + c.l2) * (p1.invM + p2.invM))
+			//var approx = c.l2 / (delta.dot(delta) + c.l2) - 0.5
+			delta.multiply(approx / 2);
+
+			p1.coords.add(delta.copy().multiply(p1.invM));
+			p2.coords.sub(delta.multiply(p2.invM));
 	}
-	for(var i = particles.length - 1; i >= 0; i--){
-		var p = particles[i];
+	for(var i = particles[1].length - 1; i >= 0; i--){
+		var p = particles[1][i];
 		if(p.moving && Math.abs(p.coords.x - p.prevCoords.x) < error && Math.abs(p.coords.y - p.prevCoords.y) < error){
 			p.moving = false;
 		}
@@ -224,8 +265,8 @@ function drawParticles(){
 	ctx2.clearRect(0, 0, w, h);
 	ctx2.fillStyle = "blue";
 	ctx2.clearRect(0, 0, w, h);
-	for(var i = particles.length - 1; i >= 0; i--){
-		var p = particles[i];
+	for(var i = particles[1].length - 1; i >= 0; i--){
+		var p = particles[1][i];
 		ctx2.fillStyle = p.moving?"red":"blue";
 		ctx2.setTransform(1, 0, 0, 1, p.coords.x, p.coords.y);
 		ctx2.beginPath();
@@ -234,6 +275,13 @@ function drawParticles(){
 		
 		ctx2.fill();
 		//ctx2.fillRect(p.coords.x - pW2, p.coords.y - pW2, pW, pW);
+	}
+	ctx2.setTransform(1, 0, 0, 1, 0, 0);
+	ctx2.fillStyle = "black";
+	for(var i = particles[0].length - 1; i >= 0; i--){
+		var p = particles[0][i];
+		
+		ctx2.fillRect(p.coords.x - pW2, p.coords.y - pW2, pW, pW);
 	}
 }
 	</script>
